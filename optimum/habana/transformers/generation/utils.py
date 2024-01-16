@@ -692,7 +692,11 @@ class GaudiGenerationMixin(GenerationMixin):
             else:
                 generation_config.max_length = generation_config.max_new_tokens + input_ids_length
 
-        self._validate_generated_length(generation_config, input_ids_length, has_default_max_length)
+        self._validate_generated_length(
+            generation_config,
+            model_kwargs["token_idx"] if "token_idx" in model_kwargs else input_ids_length,
+            has_default_max_length,
+        )
 
         # determine whether introduce trim_logits feature
         model_kwargs["trim_logits"] = generation_config.trim_logits
@@ -1492,7 +1496,12 @@ class GaudiGenerationMixin(GenerationMixin):
                     this_peer_finished = True
 
             # stop if we exceed the maximum length
-            if stopping_criteria(input_ids, scores):
+            finished = (
+                stopping_criteria(input_ids, scores)
+                if token_idx is None
+                else stopping_criteria(input_ids[:, :token_idx], scores)
+            )
+            if finished:
                 this_peer_finished = True
 
             hb_profer.step()
@@ -1810,7 +1819,12 @@ class GaudiGenerationMixin(GenerationMixin):
                     this_peer_finished = True
 
             # stop if we exceed the maximum length
-            if stopping_criteria(input_ids, scores):
+            finished = (
+                stopping_criteria(input_ids, scores)
+                if token_idx is None
+                else stopping_criteria(input_ids[:, :token_idx], scores)
+            )
+            if finished:
                 this_peer_finished = True
 
             hb_profer.step()
@@ -2978,7 +2992,14 @@ class GaudiGenerationMixin(GenerationMixin):
             cur_len = cur_len + 1
 
             hb_profer.step()
-            if constrained_beam_scorer.is_done or stopping_criteria(input_ids, scores):
+
+            finished = (
+                stopping_criteria(input_ids, scores)
+                if token_idx is None
+                else stopping_criteria(input_ids[:, :token_idx], scores)
+            )
+
+            if constrained_beam_scorer.is_done or finished:
                 if not synced_gpus:
                     break
                 else:
