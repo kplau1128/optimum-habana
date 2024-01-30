@@ -377,6 +377,10 @@ def main():
         token=model_args.token,
         trust_remote_code=model_args.trust_remote_code,
     )
+    if "Llama" in model_args.model_name_or_path:
+        if tokenizer.pad_token is None:
+            tokenizer.pad_token = "[PAD]"
+        tokenizer.cls_token = tokenizer.bos_token
     model = AutoModelForQuestionAnswering.from_pretrained(
         model_args.model_name_or_path,
         from_tf=bool(".ckpt" in model_args.model_name_or_path),
